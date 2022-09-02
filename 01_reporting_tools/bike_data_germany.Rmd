@@ -1,0 +1,243 @@
+---
+title: "Sales Dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(shiny)
+library(DT)
+library(shinyWidgets)
+library(tidyverse)
+
+library(lubridate)
+# Core
+library(tidyverse)
+
+# Interactive Visualizations
+library(plotly)
+library(ggplot2)
+
+# Spatial Data
+library(raster)
+library(sf)
+library(sp)
+
+# Currency formatting
+source("plot_sales.R")
+
+
+
+```
+
+```{r}
+# Bike data 
+bikes_tbl      <- readRDS("00_bike_data/bikes_tbl.rds")
+bikeshops_tbl  <- readRDS("00_bike_data/bikeshops_tbl.rds")
+orderlines_tbl <- readRDS("00_bike_data/orderlines_tbl.rds")
+
+bike_orderlines_tbl <- orderlines_tbl %>%
+    left_join(bikes_tbl,     by = c("product_id" = "bike_id")) %>%
+    left_join(bikeshops_tbl, by = c("customer_id" = "bikeshop_id")) %>%
+    mutate(total_price = price_euro * quantity)
+```
+
+```{r}
+sales_data_tibble <- tibble(bike_orderlines_tbl)
+
+category_1_list <- as.data.frame(sales_data_tibble$category_1)
+category_1_list <- distinct(category_1_list, .keep_all=TRUE)
+
+category_2_list <- as.data.frame(sales_data_tibble$category_2)
+category_2_list <- distinct(category_2_list, .keep_all=TRUE)
+
+```
+
+```{r}
+# German spatial data
+germany_sp <- getData('GADM', country='DE', level=1) 
+germany_sf <- st_as_sf(germany_sp) %>% 
+  
+                  # Add english names
+                  mutate(VARNAME_1 = ifelse(is.na(VARNAME_1), NAME_1, VARNAME_1)) 
+
+```
+
+
+Sidebar {.sidebar}
+------------------------
+
+```{r}
+# Inputs
+dateRangeInput(inputId = "date_range", 
+                 label   = h4("Date Range"), 
+                 start   = min(sales_data_tibble$order_date),  
+                 end     = max(sales_data_tibble$order_date),        
+                 min     = min(sales_data_tibble$order_date), 
+                 max     = max(sales_data_tibble$order_date), 
+                 startview = "year")
+
+
+checkboxGroupButtons(inputId = "category_1", 
+                   label   = h4("Bike Type"), 
+                   choices = category_1_list$`sales_data_tibble$category_1`, 
+                   selected = category_1_list$`sales_data_tibble$category_1`[1],
+                   checkIcon = list(yes = icon("check-square"), no = icon("square-o")))
+
+pickerInput(inputId =  "category_2",
+            label = h4("Bike Family"), 
+            choices =  category_2_list$`sales_data_tibble$category_2`,
+            selected =  category_2_list$`sales_data_tibble$category_2`[1],
+            multiple = FALSE,
+            options = list(
+                         `actions-box` = TRUE,
+                         `select-all-text` = "Select all",
+                         `selected-text-format`= "count"),
+            choicesOpt = NULL,
+            width = 'fit',
+            inline = FALSE)
+
+```
+
+
+```{r}
+# Reset Button
+actionButton(inputId = "reset", 
+             label   = "Reset", 
+             icon    = icon("sync"))
+
+observeEvent(eventExpr = input$reset, handlerExpr = {
+  
+  updateDateRangeInput(session = session, 
+                       inputId = "date_range", 
+                       start   = min(sales_data_tibble$order_date), 
+                       end     = max(sales_data_tibble$order_date))
+  
+  updateCheckboxGroupButtons(session  = session, 
+                         inputId  = "category_1", 
+                         selected =  category_1_list$`sales_data_tibble$category_1`[1])
+
+  updatePickerInput(session =session,
+                    inputId = 'category_2',
+                    selected = category_2_list$`sales_data_tibble$category_2`[1],
+                    options = list( `actions-box` = TRUE,
+                                    `select-all-text` = "Select all",
+                                    `selected-text-format`= "count"),
+                    choicesOpt = NULL,
+                    clearOptions = FALSE)
+
+  
+  
+})
+```
+
+```{r}
+# Apply Button
+actionButton(inputId = "apply", 
+             label   = "Apply", 
+             icon    = icon("play"))
+
+observeEvent(eventExpr = input$apply, handlerExpr = {
+  
+  updateDateRangeInput(session = session, 
+                       inputId = "date_range", 
+                       start   = input$date_range[1], 
+                       end     = input$date_range[2])
+   updateCheckboxGroupButtons(session  = session, 
+                           inputId  = "category_1", 
+                         selected = input$category_1)
+   updatePickerInput(session =session,
+                  inputId = 'category_2',
+                  selected = input$category_2,
+                  options = list( `actions-box` = TRUE,
+                                  `select-all-text` = "Select all",
+                                  `selected-text-format`= "count"),
+                  choicesOpt = NULL,
+                  clearOptions = FALSE)
+})
+```
+
+Row
+-----------------------------------------------------------------------
+### Orders
+
+```{r}
+orders <- filter(bike_orderlines_tbl, category_1 == "Road")
+valueBox(length(orders$order_id), icon = "fa-bicycle" , color='#74c758')
+```
+
+### Sales
+
+```{r}
+sales <- sum(orders['total_price']) / 100000
+valueBox(paste("$",round(sales, digits = 2),"M"), icon = "fa-dollar", color = '#63a2e7')
+```
+
+### Ratio
+
+```{r}
+# spam <- computeSpam()
+valueBox("ratio", icon = "fa-percent", color = '#b383cb')
+```
+
+
+Row {data-width=600}
+-----------------------
+
+### By State
+
+```{r}
+geo_plot_tbl <- bike_orderlines_tbl %>% 
+                  group_by(state) %>%
+                  summarise(total_revenue = sum(total_price)) %>%
+                  ungroup() %>%
+                  right_join(germany_sf, by = c("state" = "VARNAME_1")) %>% 
+                  mutate(total_revenue = ifelse(is.na(total_revenue), 0, total_revenue)) %>% 
+                  mutate(label_text = str_glue("State: {state}
+                                         Revenue: {format_to_euro(total_revenue)}")) %>% 
+                  st_as_sf()
+```
+
+```{r}
+plot_ly(geo_plot_tbl, 
+        split      = ~NAME_1, 
+        color      = ~total_revenue,
+        colors     = "Blues",
+        stroke     = I("black"),
+        hoverinfo  = 'text', 
+        text       = ~label_text, 
+        hoveron    = "fills", 
+        showlegend = FALSE) 
+```
+
+<!-- Column {data-width=600} -->
+<!-- ----------------------- -->
+### Over Time
+```{r}
+# output$checkbox_values <- renderPrint(input$category_1[2])
+# 
+# textOutput(outputId = "checkbox_values")
+
+output$dt_output_1 <-  renderPlotly(expr = {
+
+  # for (i in 1:length(input$category_1))
+  # {
+  plot_categories(data_table = bike_orderlines_tbl,
+                category_1 = input$category_1,
+                category_2 = input$category_2,
+                unit = "monthly",
+                ncol = 1,
+                scales = "free_y",
+                date_format = "%Y-%m-%d",
+                interactive = TRUE) %>% ggplotly()
+  # }
+
+})
+# 
+plotlyOutput(outputId = "dt_output_1")
+
+```

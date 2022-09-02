@@ -1,0 +1,13 @@
+name: Stock_analyzer
+title: Stock_analyzer
+username:
+account: sourabh-kulkarni
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 6548991
+bundleId: 6042634
+url: https://sourabh-kulkarni.shinyapps.io/Stock_analyzer/
+when: 1656176611.30431
+lastSyncTime: 1656176611.30432
+asMultiple: FALSE
+asStatic: FALSE

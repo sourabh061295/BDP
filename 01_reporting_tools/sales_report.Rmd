@@ -1,0 +1,124 @@
+---
+title: "Sales Report"
+author: "Sourabh Kulkarni"
+date: "16/06/2022"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: '2'
+  html_document:
+    code_folding: none
+    df_print: paged
+    highlight: tango
+    number_sections: yes
+    theme: flatly
+    toc: yes
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = FALSE,
+    eval = TRUE,
+    results = 'hide',
+    message = FALSE,
+    warning = FALSE,
+    dpi = 300,
+    fig.align = "center"
+    )
+```
+
+
+
+
+```{r}
+# Load Libraries
+library(tidyverse)
+library(plotly)
+library(lubridate)
+```
+
+```{r}
+# Bike data
+bikes_tbl      <- readRDS("../00_bike_data/bikes_tbl.rds")
+bikeshops_tbl  <- readRDS("../00_bike_data/bikeshops_tbl.rds")
+orderlines_tbl <- readRDS("../00_bike_data/orderlines_tbl.rds")
+
+bike_orderlines_tbl <- orderlines_tbl %>%
+    left_join(bikes_tbl,     by = c("product_id" = "bike_id")) %>%
+    left_join(bikeshops_tbl, by = c("customer_id" = "bikeshop_id")) %>%
+    mutate(total_price = price_euro * quantity)
+
+bike_orderlines_tbl
+```
+
+```{r}
+# Currency formatting
+source("../00_scripts/plot_sales.R")
+```
+
+# Total Sales Charts
+## Quarterly Sales Trends
+
+```{r}
+plot_total_sales(unit = "quarter", date_format = "%B %d, %Y", interactive = FALSE)
+```
+
+## Monthly Sales Trends
+
+```{r}
+plot_total_sales(unit = "month", date_format = "%B %Y", interactive = FALSE)
+```
+
+## Weekly Sales Trends
+```{r}
+plot_total_sales(unit = "week", date_format = "%B %d, %Y", interactive = FALSE)
+```
+
+# Category Sales Charts
+## Road
+### Quarterly
+```{r}
+plot_categories(category_1 = "Road", category_2 = "All",
+                            unit = "quarter", date_format = "%B %Y",
+                            ncol = 1, scales = "free_y",
+                            interactive = FALSE)
+```
+### Monthly
+```{r}
+plot_categories(category_1 = "Road", category_2 = "All",
+                            unit = "month", date_format = "%B %Y",
+                            ncol = 1, scales = "free_y",
+                            interactive = FALSE)
+```
+### Weekly
+```{r}
+plot_categories(category_1 = "Road", category_2 = "All",
+                            unit = "week", date_format = "%B %Y",
+                            ncol = 1, scales = "free_y",
+                            interactive = FALSE)
+```
+
+## Mountain
+### Quarterly
+```{r}
+plot_categories(category_1 = "Mountain", category_2 = "All",
+                            unit = "quarter", date_format = "%B %Y",
+                            ncol = 1, scales = "free_y",
+                            interactive = FALSE)
+```
+### Monthly
+```{r}
+plot_categories(category_1 = "Mountain", category_2 = "All",
+                            unit = "month", date_format = "%B %Y",
+                            ncol = 1, scales = "free_y",
+                            interactive = FALSE)
+```
+### Weekly
+```{r}
+plot_categories(category_1 = "Mountain", category_2 = "All",
+                            unit = "week", date_format = "%B %Y",
+                            ncol = 1, scales = "free_y",
+                            interactive = FALSE)
+```
+

@@ -1,0 +1,13 @@
+name: sales_dashboard
+title: sales_dashboard
+username:
+account: nilesh-hampiholi
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 6544026
+bundleId: 6042194
+url: https://nilesh-hampiholi.shinyapps.io/sales_dashboard/
+when: 1656155192.52799
+lastSyncTime: 1656155192.52799
+asMultiple: FALSE
+asStatic: FALSE
